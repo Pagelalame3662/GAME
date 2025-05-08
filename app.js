@@ -31,33 +31,64 @@ let lastY = 0;
 // 初始化畫布大小
 function resizeCanvas() {
     const container = canvas.parentElement;
-    canvas.width = container.clientWidth;
-    canvas.height = 400;
+    const rect = container.getBoundingClientRect();
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = '400px';
+    canvas.width = rect.width * window.devicePixelRatio;
+    canvas.height = 400 * window.devicePixelRatio;
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
 }
 
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
+
+// 計算滑鼠/觸控位置
+function getPosition(e) {
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX || e.touches[0].clientX) - rect.left;
+    const y = (e.clientY || e.touches[0].clientY) - rect.top;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return {
+        x: x * (canvas.width / rect.width / window.devicePixelRatio),
+        y: y * (canvas.height / rect.height / window.devicePixelRatio)
+    };
+}
 
 // 畫布事件監聽
 canvas.addEventListener('mousedown', startDrawing);
 canvas.addEventListener('mousemove', draw);
 canvas.addEventListener('mouseup', stopDrawing);
 canvas.addEventListener('mouseout', stopDrawing);
+canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    startDrawing(e);
+});
+canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    draw(e);
+});
+canvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    stopDrawing();
+});
 
 function startDrawing(e) {
     if (gameState.currentDrawer !== gameState.userId) return;
     isDrawing = true;
-    [lastX, lastY] = [e.offsetX, e.offsetY];
+    const pos = getPosition(e);
+    [lastX, lastY] = [pos.x, pos.y];
 }
 
 function draw(e) {
     if (!isDrawing || gameState.currentDrawer !== gameState.userId) return;
     
+    const pos = getPosition(e);
     const drawData = {
         x0: lastX,
         y0: lastY,
-        x1: e.offsetX,
-        y1: e.offsetY,
+        x1: pos.x,
+        y1: pos.y,
         color: colorPicker.value,
         size: brushSize.value
     };
@@ -65,7 +96,7 @@ function draw(e) {
     drawLine(drawData);
     gun.get('draw').put(drawData);
     
-    [lastX, lastY] = [e.offsetX, e.offsetY];
+    [lastX, lastY] = [pos.x, pos.y];
 }
 
 function drawLine(data) {
